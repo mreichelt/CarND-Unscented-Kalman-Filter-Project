@@ -92,6 +92,9 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 void UKF::Initialize(MeasurementPackage &meas_package) {
     VectorXd &raw = meas_package.raw_measurements_;
 
+    // initialize time
+    time_us_ = meas_package.timestamp_;
+
     if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
         x_ << raw[0], raw[1], 0, 0, 0;
 
