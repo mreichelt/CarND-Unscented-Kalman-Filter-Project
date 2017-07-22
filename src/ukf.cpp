@@ -17,6 +17,11 @@ UKF::UKF() {
     // if this is false, radar measurements will be ignored (except during init)
     use_radar_ = true;
 
+    n_x_ = 5;
+    n_aug_ = 7;
+    lambda_ = 3 - n_aug_;
+    n_sigma_ = 2 * n_aug_ + 1;
+
     // initial state vector
     x_ = VectorXd(5);
 
@@ -24,8 +29,7 @@ UKF::UKF() {
     P_ = MatrixXd(5, 5);
 
     // Process noise standard deviation longitudinal acceleration in m/s^2
-    // TODO too high!
-    std_a_ = 30;
+    std_a_ = 3;
 
     // Process noise standard deviation yaw acceleration in rad/s^2
     // TODO too high!
@@ -46,28 +50,47 @@ UKF::UKF() {
     // Radar measurement noise standard deviation radius change in m/s
     std_radrd_ = 0.3;
 
-    /**
-    TODO:
+    // init state covariance matrix along the diagonal
+    // first two values are what we expect from x and y positions, other we leave as ones (like identity matrix)
+    P_.diagonal() << std_laspx_ * std_laspx_, std_laspy_ * std_laspy_, 1, 1, 1;
 
-    Complete the initialization. See ukf.h for other member properties.
+    // initialize sigma points matrix
+    Xsig_pred_ = MatrixXd::Zero(n_x_, n_sigma_);
 
-    Hint: one or more values initialized above might be wildly off...
-    */
+    // initialize weights
+    weights_ = VectorXd(n_sigma_);
+    weights_[0] = lambda_ / (lambda_ + n_aug_);
+    for (int i = 1; i < n_sigma_; i++) {
+        double weight = 0.5 / (n_aug_ + lambda_);
+        weights_[i] = weight;
+    }
+
+    is_initialized_ = false;
+    time_us_ = 0;
 }
 
-UKF::~UKF() {}
+UKF::~UKF() = default;
 
 /**
  * @param {MeasurementPackage} meas_package The latest measurement data of
  * either radar or laser.
  */
 void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
+    if (!is_initialized_) {
+        Initialize(meas_package);
+        is_initialized_ = true;
+    }
+
     /**
     TODO:
 
     Complete this function! Make sure you switch between lidar and radar
     measurements.
     */
+}
+
+void UKF::Initialize(MeasurementPackage &meas_package) {
+    // TODO: initialize data using first measurement
 }
 
 /**

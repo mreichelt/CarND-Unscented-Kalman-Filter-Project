@@ -5,6 +5,8 @@ using Eigen::VectorXd;
 using Eigen::MatrixXd;
 using std::vector;
 
+static const double TWO_PI = 2. * M_PI;
+
 Tools::Tools() {}
 
 Tools::~Tools() {}
@@ -39,3 +41,9 @@ VectorXd Tools::CalculateRMSE(const vector<VectorXd> &estimations,
     //return the result
     return rmse;
 }
+
+double Tools::normalizeAngle(double angle) {
+    while (angle > M_PI) angle -= TWO_PI;
+    while (angle < -M_PI) angle += TWO_PI;
+    return angle;
+};
