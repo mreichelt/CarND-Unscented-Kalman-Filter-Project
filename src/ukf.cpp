@@ -90,7 +90,31 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 }
 
 void UKF::Initialize(MeasurementPackage &meas_package) {
-    // TODO: initialize data using first measurement
+    VectorXd &raw = meas_package.raw_measurements_;
+
+    if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
+        x_ << raw[0], raw[1], 0, 0, 0;
+
+    } else if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
+        // map coordinates from polar to cartesian
+        double ro = raw[0],
+                theta = raw[1],
+                ro_dot = raw[2];
+
+        // convert polar coordinates from radar to cartesian
+        double px = ro * cos(theta),
+                py = ro * sin(theta),
+                vx = ro_dot * cos(theta),
+                vy = ro_dot * sin(theta),
+                v = sqrt(vx * vx + vy * vy);
+
+        // use directional speed v instead of vx & vy
+        x_ << px, py, v, 0, 0;
+
+    } else {
+        cerr << "unknown measurement type" << endl;
+        exit(EXIT_FAILURE);
+    }
 }
 
 /**
