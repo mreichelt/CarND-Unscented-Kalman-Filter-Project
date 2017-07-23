@@ -118,6 +118,7 @@ public:
 
     MatrixXd PredictSigmaPoints(MatrixXd &Xsig_aug, double delta_t);
 
+    void PredictMeanAndCovariance(MatrixXd Xsig_pred);
 };
 
 #endif /* UKF_H */

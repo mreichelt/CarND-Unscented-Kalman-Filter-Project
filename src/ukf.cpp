@@ -131,21 +131,14 @@ void UKF::Initialize(MeasurementPackage &meas_package) {
  * measurement and this one.
  */
 void UKF::Prediction(double delta_t) {
-    /**
-    TODO:
-
-    Complete this function! Estimate the object's location. Modify the state
-    vector, x_. Predict sigma points, the state, and the state covariance matrix.
-    */
-
-
     // generate sigma points (augmented due to noise)
     MatrixXd Xsig_aug = GenerateAugmentedSigmaPoints();
 
     // predict sigma points: just apply model function
     MatrixXd Xsig_pred = PredictSigmaPoints(Xsig_aug, delta_t);
 
-    // TODO: predict mean & covariance
+    // predict mean & covariance, store into x_ and P_
+    PredictMeanAndCovariance(Xsig_pred);
 }
 
 MatrixXd UKF::GenerateAugmentedSigmaPoints() {
@@ -221,6 +214,26 @@ MatrixXd UKF::PredictSigmaPoints(MatrixXd &Xsig_aug, double delta_t) {
     }
 
     return Xsig_pred;
+}
+
+void UKF::PredictMeanAndCovariance(MatrixXd Xsig_pred) {
+    VectorXd x = VectorXd(n_x_);
+    MatrixXd P = MatrixXd(n_x_, n_x_);
+
+    // predict state
+    for (int i = 0; i < n_sigma_; i++) {
+        x += weights_[i] * Xsig_pred.col(i);
+    }
+    x_ = x;
+
+    // predict state covariance matrix
+    for (int i = 0; i < n_sigma_; i++) {
+        VectorXd x_diff = Xsig_pred.col(i) - x;
+        // normalize rho
+        x_diff[3] = tools.normalizeAngle(x_diff[3]);
+        P += weights_[i] * x_diff * x_diff.transpose();
+    }
+    P_ = P;
 }
 
 
