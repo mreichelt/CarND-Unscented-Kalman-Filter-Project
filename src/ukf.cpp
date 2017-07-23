@@ -81,6 +81,11 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
         is_initialized_ = true;
     }
 
+    // compute time delta in seconds
+    double delta_t = (meas_package.timestamp_ - time_us_) / 1000000.0;
+    time_us_ = meas_package.timestamp_;
+
+    Prediction(delta_t);
     /**
     TODO:
 
@@ -132,7 +137,43 @@ void UKF::Prediction(double delta_t) {
     Complete this function! Estimate the object's location. Modify the state
     vector, x_. Predict sigma points, the state, and the state covariance matrix.
     */
+
+
+    // generate sigma points (augmented due to noise)
+    MatrixXd Xsig_aug = GenerateAugmentedSigmaPoints();
+
+    // TODO: predict sigma points
+
+
+    // TODO: predict mean & covariance
 }
+
+MatrixXd UKF::GenerateAugmentedSigmaPoints() {
+    VectorXd x_aug = VectorXd(n_aug_);
+    MatrixXd P_aug = MatrixXd(n_aug_, n_aug_);
+    MatrixXd Xsig_aug = MatrixXd(n_aug_, n_sigma_);
+
+    // create augmented mean state
+    x_aug.head(n_x_) = x_;
+
+    //create augmented covariance matrix
+    P_aug.topLeftCorner(n_x_, n_x_) = P_;
+    P_aug.bottomRightCorner(2, 2) << std_a_ * std_a_, 0,
+            0, std_yawdd_ * std_yawdd_;
+
+    // create square root matrix
+    MatrixXd A_aug = P_aug.llt().matrixL();
+
+    // create augmented sigma points
+    Xsig_aug.block(0, 1, n_aug_, n_aug_) = sqrt(3.0) * A_aug;
+    Xsig_aug.block(0, n_aug_ + 1, n_aug_, n_aug_) = -sqrt(3.0) * A_aug;
+    for (int col = 0; col < n_sigma_; col++) {
+        Xsig_aug.col(col) += x_aug;
+    }
+
+    return Xsig_aug;
+}
+
 
 /**
  * Updates the state and the state covariance matrix using a laser measurement.
@@ -163,3 +204,4 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
     You'll also need to calculate the radar NIS.
     */
 }
+
