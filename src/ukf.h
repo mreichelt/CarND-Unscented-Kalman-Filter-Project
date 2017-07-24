@@ -116,9 +116,12 @@ public:
 
     MatrixXd GenerateAugmentedSigmaPoints();
 
-    MatrixXd PredictSigmaPoints(MatrixXd &Xsig_aug, double delta_t);
+    void PredictSigmaPoints(MatrixXd &Xsig_aug, double delta_t);
 
-    void PredictMeanAndCovariance(MatrixXd Xsig_pred);
+    void PredictMeanAndCovariance();
+
+    MatrixXd buildCrossCorrelationMatrix(int n_z, MatrixXd &Zsig, VectorXd &z_pred);
+
 };
 
 #endif /* UKF_H */
