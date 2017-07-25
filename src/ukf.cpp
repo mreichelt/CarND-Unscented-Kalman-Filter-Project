@@ -274,7 +274,6 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
 
     // residual
     VectorXd z_diff = z - z_pred;
-    z_diff[1] = tools.normalizeAngle(z_diff[1]);
 
     // update state mean and covariance matrix
     x_ += K * z_diff;
@@ -293,13 +292,20 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
     MatrixXd Zsig = MatrixXd::Zero(n_z, n_sigma_);
     for (int i = 0; i < n_sigma_; i++) {
         VectorXd x = Xsig_pred_.col(i);
-        double px = x[0];
-        double py = x[1];
-        double v = x[2];
-        double phi = x[3];
-        Zsig.col(i) << sqrt(px * px + py * py),
+        double px = x[0],
+                py = x[1],
+                v = x[2],
+                phi = x[3],
+                r = sqrt(px * px + py * py);
+
+        // avoid division by zero
+        if (fabs(r) < 0.001) {
+            r = 0.001;
+        }
+
+        Zsig.col(i) << r,
                 atan2(py, px),
-                v * (px * cos(phi) + py * sin(phi)) / sqrt(px * px + py * py);
+                v * (px * cos(phi) + py * sin(phi)) / r;
     }
 
 
