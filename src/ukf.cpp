@@ -32,8 +32,8 @@ UKF::UKF() {
     std_a_ = 3;
 
     // Process noise standard deviation yaw acceleration in rad/s^2
-    // TODO too high!
-    std_yawdd_ = 30;
+    // TODO adjust using NIS
+    std_yawdd_ = 1;
 
     // Laser measurement noise standard deviation position1 in m
     std_laspx_ = 0.15;
