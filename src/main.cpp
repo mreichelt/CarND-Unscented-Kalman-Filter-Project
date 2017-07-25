@@ -36,8 +36,11 @@ int main() {
     vector<VectorXd> estimations;
     vector<VectorXd> ground_truth;
 
-    h.onMessage([&ukf, &tools, &estimations, &ground_truth](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
-                                                            uWS::OpCode opCode) {
+    ofstream nis_laser_file("nis_laser.csv", ios::out | ios::trunc);
+    ofstream nis_radar_file("nis_radar.csv", ios::out | ios::trunc);
+
+    h.onMessage([&ukf, &tools, &estimations, &ground_truth, &nis_laser_file, &nis_radar_file]
+                        (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
         // "42" at the start of the message means there's a websocket message event.
         // The 4 signifies a websocket message
         // The 2 signifies a websocket event
@@ -127,6 +130,13 @@ int main() {
 
                     VectorXd RMSE = tools.CalculateRMSE(estimations, ground_truth);
 
+                    // write NIS values to CSV files
+                    if (meas_package.sensor_type_ == MeasurementPackage::LASER && ukf.use_laser_) {
+                        nis_laser_file << ukf.nis_laser_ << endl;
+                    } else if (meas_package.sensor_type_ == MeasurementPackage::RADAR && ukf.use_radar_) {
+                        nis_radar_file << ukf.nis_radar_ << endl;
+                    }
+
                     json msgJson;
                     msgJson["estimate_x"] = p_x;
                     msgJson["estimate_y"] = p_y;
@@ -164,7 +174,10 @@ int main() {
         std::cout << "Connected!!!" << std::endl;
     });
 
-    h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code, char *message, size_t length) {
+    h.onDisconnection([&h, &nis_laser_file, &nis_radar_file]
+                              (uWS::WebSocket<uWS::SERVER> ws, int code, char *message, size_t length) {
+        nis_laser_file.close();
+        nis_radar_file.close();
         ws.close();
         std::cout << "Disconnected" << std::endl;
     });
@@ -178,90 +191,3 @@ int main() {
     }
     h.run();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

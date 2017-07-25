@@ -69,17 +69,19 @@ UKF::UKF() {
     time_us_ = 0;
 
     // px, py
-    n_laser = 2;
-    R_laser = MatrixXd::Zero(n_laser, n_laser);
-    R_laser << std_laspx_ * std_laspx_, 0,
+    n_laser_ = 2;
+    R_laser_ = MatrixXd::Zero(n_laser_, n_laser_);
+    R_laser_ << std_laspx_ * std_laspx_, 0,
             0, std_laspy_ * std_laspy_;
 
     // r, phi, r_dot
-    n_radar = 3;
-    R_radar = MatrixXd::Zero(n_radar, n_radar);
-    R_radar << std_radr_ * std_radr_, 0, 0,
+    n_radar_ = 3;
+    R_radar_ = MatrixXd::Zero(n_radar_, n_radar_);
+    R_radar_ << std_radr_ * std_radr_, 0, 0,
             0, std_radphi_ * std_radphi_, 0,
             0, 0, std_radrd_ * std_radrd_;
+
+    nis_laser_ = nis_radar_ = 0.0;
 }
 
 UKF::~UKF() = default;
@@ -242,7 +244,7 @@ void UKF::PredictMeanAndCovariance() {
     for (int i = 0; i < n_sigma_; i++) {
         VectorXd x_diff = Xsig_pred_.col(i) - x;
         // normalize rho
-        x_diff[3] = tools.normalizeAngle(x_diff[3]);
+        x_diff[3] = tools_.normalizeAngle(x_diff[3]);
         P += weights_[i] * x_diff * x_diff.transpose();
     }
     P_ = P;
@@ -258,23 +260,24 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
     MatrixXd Zsig = Xsig_pred_.topRows(2);
 
     // calculate mean predicted measurement
-    VectorXd z_pred = VectorXd::Zero(n_laser);
+    VectorXd z_pred = VectorXd::Zero(n_laser_);
     for (int i = 0; i < n_sigma_; i++) {
         z_pred += weights_[i] * Zsig.col(i);
     }
 
     // calculate measurement covariance matrix S
-    MatrixXd S = MatrixXd::Zero(n_laser, n_laser);
+    MatrixXd S = MatrixXd::Zero(n_laser_, n_laser_);
     for (int i = 0; i < n_sigma_; i++) {
         VectorXd z_diff = Zsig.col(i) - z_pred;
         S += weights_[i] * z_diff * z_diff.transpose();
     }
-    S += R_laser;
+    S += R_laser_;
 
-    MatrixXd Tc = buildCrossCorrelationMatrix(n_laser, Zsig, z_pred);
+    MatrixXd Tc = buildCrossCorrelationMatrix(n_laser_, Zsig, z_pred);
 
     // kalman gain
-    MatrixXd K = Tc * S.inverse();
+    MatrixXd Sinverse = S.inverse();
+    MatrixXd K = Tc * Sinverse;
 
     // the actual measurement
     VectorXd z = meas_package.raw_measurements_;
@@ -285,6 +288,9 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
     // update state mean and covariance matrix
     x_ += K * z_diff;
     P_ -= K * S * K.transpose();
+
+    // calculate NIS
+    nis_laser_ = z_diff.transpose() * Sinverse * z_diff;
 }
 
 /**
@@ -293,7 +299,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
  */
 void UKF::UpdateRadar(MeasurementPackage meas_package) {
     // transform sigma points into measurement space
-    MatrixXd Zsig = MatrixXd::Zero(n_radar, n_sigma_);
+    MatrixXd Zsig = MatrixXd::Zero(n_radar_, n_sigma_);
     for (int i = 0; i < n_sigma_; i++) {
         VectorXd x = Xsig_pred_.col(i);
         double px = x[0],
@@ -314,35 +320,39 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
 
 
     // calculate mean predicted measurement
-    VectorXd z_pred = VectorXd::Zero(n_radar);
+    VectorXd z_pred = VectorXd::Zero(n_radar_);
     for (int i = 0; i < n_sigma_; i++) {
         z_pred += weights_[i] * Zsig.col(i);
     }
 
     // calculate measurement covariance matrix S
-    MatrixXd S = MatrixXd::Zero(n_radar, n_radar);
+    MatrixXd S = MatrixXd::Zero(n_radar_, n_radar_);
     for (int i = 0; i < n_sigma_; i++) {
         VectorXd z_diff = Zsig.col(i) - z_pred;
         S += weights_[i] * z_diff * z_diff.transpose();
     }
-    S += R_radar;
+    S += R_radar_;
 
 
-    MatrixXd Tc = buildCrossCorrelationMatrix(n_radar, Zsig, z_pred);
+    MatrixXd Tc = buildCrossCorrelationMatrix(n_radar_, Zsig, z_pred);
 
     // kalman gain
-    MatrixXd K = Tc * S.inverse();
+    MatrixXd Sinverse = S.inverse();
+    MatrixXd K = Tc * Sinverse;
 
     // the actual measurement
     VectorXd z = meas_package.raw_measurements_;
 
     // residual
     VectorXd z_diff = z - z_pred;
-    z_diff[1] = tools.normalizeAngle(z_diff[1]);
+    z_diff[1] = tools_.normalizeAngle(z_diff[1]);
 
     // update state mean and covariance matrix
     x_ += K * z_diff;
     P_ -= K * S * K.transpose();
+
+    // calculate NIS
+    nis_radar_ = z_diff.transpose() * Sinverse * z_diff;
 }
 
 MatrixXd UKF::buildCrossCorrelationMatrix(int n_z, MatrixXd &Zsig, VectorXd &z_pred) {
@@ -351,11 +361,11 @@ MatrixXd UKF::buildCrossCorrelationMatrix(int n_z, MatrixXd &Zsig, VectorXd &z_p
 
         // residual
         VectorXd z_diff = Zsig.col(i) - z_pred;
-        z_diff[1] = tools.normalizeAngle(z_diff[1]);
+        z_diff[1] = tools_.normalizeAngle(z_diff[1]);
 
         // state difference
         VectorXd x_diff = Xsig_pred_.col(i) - x_;
-        x_diff[3] = tools.normalizeAngle(x_diff[3]);
+        x_diff[3] = tools_.normalizeAngle(x_diff[3]);
 
         Tc = Tc + weights_[i] * x_diff * z_diff.transpose();
     }
