@@ -1,0 +1,6 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="UnscentedKF" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="UnscentedKF" TARGET_NAME="UnscentedKF" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="UnscentedKF" RUN_TARGET_NAME="UnscentedKF">
+    <envs />
+    <method />
+  </configuration>
+</component>

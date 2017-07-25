@@ -4,5 +4,6 @@
 # build files
 build/
 
-.idea
+.idea/*
+!.idea/runConfigurations
 *.iml
