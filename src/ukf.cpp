@@ -67,6 +67,19 @@ UKF::UKF() {
 
     is_initialized_ = false;
     time_us_ = 0;
+
+    // px, py
+    n_laser = 2;
+    R_laser = MatrixXd::Zero(n_laser, n_laser);
+    R_laser << std_laspx_ * std_laspx_, 0,
+            0, std_laspy_ * std_laspy_;
+
+    // r, phi, r_dot
+    n_radar = 3;
+    R_radar = MatrixXd::Zero(n_radar, n_radar);
+    R_radar << std_radr_ * std_radr_, 0, 0,
+            0, std_radphi_ * std_radphi_, 0,
+            0, 0, std_radrd_ * std_radrd_;
 }
 
 UKF::~UKF() = default;
@@ -241,30 +254,24 @@ void UKF::PredictMeanAndCovariance() {
  * @param {MeasurementPackage} meas_package
  */
 void UKF::UpdateLidar(MeasurementPackage meas_package) {
-    // px, py
-    int n_z = 2;
-
     // transform Xsig_pred_ into measurement space - simply take the first 2 rows
     MatrixXd Zsig = Xsig_pred_.topRows(2);
 
     // calculate mean predicted measurement
-    VectorXd z_pred = VectorXd::Zero(n_z);
+    VectorXd z_pred = VectorXd::Zero(n_laser);
     for (int i = 0; i < n_sigma_; i++) {
         z_pred += weights_[i] * Zsig.col(i);
     }
 
     // calculate measurement covariance matrix S
-    MatrixXd S = MatrixXd::Zero(n_z, n_z);
-    MatrixXd R = MatrixXd::Zero(n_z, n_z);
-    R << std_laspx_ * std_laspx_, 0,
-            0, std_laspy_ * std_laspy_;
+    MatrixXd S = MatrixXd::Zero(n_laser, n_laser);
     for (int i = 0; i < n_sigma_; i++) {
         VectorXd z_diff = Zsig.col(i) - z_pred;
         S += weights_[i] * z_diff * z_diff.transpose();
     }
-    S += R;
+    S += R_laser;
 
-    MatrixXd Tc = buildCrossCorrelationMatrix(n_z, Zsig, z_pred);
+    MatrixXd Tc = buildCrossCorrelationMatrix(n_laser, Zsig, z_pred);
 
     // kalman gain
     MatrixXd K = Tc * S.inverse();
@@ -285,11 +292,8 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
  * @param {MeasurementPackage} meas_package
  */
 void UKF::UpdateRadar(MeasurementPackage meas_package) {
-    // r, phi, r_dot
-    int n_z = 3;
-
     // transform sigma points into measurement space
-    MatrixXd Zsig = MatrixXd::Zero(n_z, n_sigma_);
+    MatrixXd Zsig = MatrixXd::Zero(n_radar, n_sigma_);
     for (int i = 0; i < n_sigma_; i++) {
         VectorXd x = Xsig_pred_.col(i);
         double px = x[0],
@@ -310,25 +314,21 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
 
 
     // calculate mean predicted measurement
-    VectorXd z_pred = VectorXd::Zero(n_z);
+    VectorXd z_pred = VectorXd::Zero(n_radar);
     for (int i = 0; i < n_sigma_; i++) {
         z_pred += weights_[i] * Zsig.col(i);
     }
 
     // calculate measurement covariance matrix S
-    MatrixXd S = MatrixXd::Zero(n_z, n_z);
-    MatrixXd R = MatrixXd::Zero(n_z, n_z);
-    R << std_radr_ * std_radr_, 0, 0,
-            0, std_radphi_ * std_radphi_, 0,
-            0, 0, std_radrd_ * std_radrd_;
+    MatrixXd S = MatrixXd::Zero(n_radar, n_radar);
     for (int i = 0; i < n_sigma_; i++) {
         VectorXd z_diff = Zsig.col(i) - z_pred;
         S += weights_[i] * z_diff * z_diff.transpose();
     }
-    S += R;
+    S += R_radar;
 
 
-    MatrixXd Tc = buildCrossCorrelationMatrix(n_z, Zsig, z_pred);
+    MatrixXd Tc = buildCrossCorrelationMatrix(n_radar, Zsig, z_pred);
 
     // kalman gain
     MatrixXd K = Tc * S.inverse();
