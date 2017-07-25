@@ -241,14 +241,44 @@ void UKF::PredictMeanAndCovariance() {
  * @param {MeasurementPackage} meas_package
  */
 void UKF::UpdateLidar(MeasurementPackage meas_package) {
-    /**
-    TODO:
+    // px, py
+    int n_z = 2;
 
-    Complete this function! Use lidar data to update the belief about the object's
-    position. Modify the state vector, x_, and covariance, P_.
+    // transform Xsig_pred_ into measurement space - simply take the first 2 rows
+    MatrixXd Zsig = Xsig_pred_.topRows(2);
 
-    You'll also need to calculate the lidar NIS.
-    */
+    // calculate mean predicted measurement
+    VectorXd z_pred = VectorXd::Zero(n_z);
+    for (int i = 0; i < n_sigma_; i++) {
+        z_pred += weights_[i] * Zsig.col(i);
+    }
+
+    // calculate measurement covariance matrix S
+    MatrixXd S = MatrixXd::Zero(n_z, n_z);
+    MatrixXd R = MatrixXd::Zero(n_z, n_z);
+    R << std_laspx_ * std_laspx_, 0,
+            0, std_laspy_ * std_laspy_;
+    for (int i = 0; i < n_sigma_; i++) {
+        VectorXd z_diff = Zsig.col(i) - z_pred;
+        S += weights_[i] * z_diff * z_diff.transpose();
+    }
+    S += R;
+
+    MatrixXd Tc = buildCrossCorrelationMatrix(n_z, Zsig, z_pred);
+
+    // kalman gain
+    MatrixXd K = Tc * S.inverse();
+
+    // the actual measurement
+    VectorXd z = meas_package.raw_measurements_;
+
+    // residual
+    VectorXd z_diff = z - z_pred;
+    z_diff[1] = tools.normalizeAngle(z_diff[1]);
+
+    // update state mean and covariance matrix
+    x_ += K * z_diff;
+    P_ -= K * S * K.transpose();
 }
 
 /**
@@ -256,20 +286,10 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
  * @param {MeasurementPackage} meas_package
  */
 void UKF::UpdateRadar(MeasurementPackage meas_package) {
-    /**
-    TODO:
-
-    Complete this function! Use radar data to update the belief about the object's
-    position. Modify the state vector, x_, and covariance, P_.
-
-    You'll also need to calculate the radar NIS.
-    */
-
     // r, phi, r_dot
     int n_z = 3;
 
-
-    //transform sigma points into measurement space
+    // transform sigma points into measurement space
     MatrixXd Zsig = MatrixXd::Zero(n_z, n_sigma_);
     for (int i = 0; i < n_sigma_; i++) {
         VectorXd x = Xsig_pred_.col(i);
@@ -283,13 +303,13 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
     }
 
 
-    //calculate mean predicted measurement
+    // calculate mean predicted measurement
     VectorXd z_pred = VectorXd::Zero(n_z);
     for (int i = 0; i < n_sigma_; i++) {
         z_pred += weights_[i] * Zsig.col(i);
     }
 
-    //calculate measurement covariance matrix S
+    // calculate measurement covariance matrix S
     MatrixXd S = MatrixXd::Zero(n_z, n_z);
     MatrixXd R = MatrixXd::Zero(n_z, n_z);
     R << std_radr_ * std_radr_, 0, 0,
@@ -323,7 +343,7 @@ MatrixXd UKF::buildCrossCorrelationMatrix(int n_z, MatrixXd &Zsig, VectorXd &z_p
     MatrixXd Tc = MatrixXd::Zero(n_x_, n_z);
     for (int i = 0; i < n_sigma_; i++) {
 
-        //residual
+        // residual
         VectorXd z_diff = Zsig.col(i) - z_pred;
         z_diff[1] = tools.normalizeAngle(z_diff[1]);
 
